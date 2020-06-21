@@ -1,0 +1,134 @@
+﻿@model dynamic
+@{
+    ViewBag.Title = "New Rental Form";
+}
+
+<h2>New Rental Form</h2>
+
+<form id="newRental">
+    <div class="form-group">
+        <label>Customer</label>
+        <div class="tt-container">
+           <input id="customer" name="customer" data-rule-validCustomer="true" required type="text" value="" class="form-control" />
+        </div>
+    </div>
+
+    <div class="form-group">
+        <label>Equipment</label>
+        <div class="tt-container">
+          <input id="equipment" name="equipment" date-rule-atLeastOneEquipment="true" type="text" value="" class="form-control" />
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-4 col-sm-4">
+            <ul id="equipments" class="list-group"></ul>
+        </div>
+    </div>
+
+    
+
+    <button class="btn btn-primary">Submit</button>
+</form>
+
+@section scripts
+{
+    @Scripts.Render("~/bundles/jqueryval")
+    <script>
+        //pt customer--pt lista de sugestii la rental
+        $(document).ready(function () {
+
+            var vm = {
+                //CustomerId: "",
+                EquipmentIds: []
+            };
+
+            var customers = new Bloodhound({
+                datumTokenizer: Bloodhound.tokenizers.obj.whitespace('name'),
+                queryTokenizer: Bloodhound.tokenizers.whitespace,
+                remote: {
+                    url: '/api/customers?query=%QUERY',
+                    wildcard: '%QUERY'
+                }
+            });
+
+            $('#customer').typeahead({
+                minLength: 3,
+                highlight: true
+            }, {
+                name: 'customers',
+                display: 'name',
+                source: customers
+            }).on("typeahead:select", function (e, customer) {
+                vm.CustomerId = customer.id;
+            });
+
+            var equipments = new Bloodhound({
+                datumTokenizer: Bloodhound.tokenizers.obj.whitespace('name'),
+                queryTokenizer: Bloodhound.tokenizers.whitespace,
+                remote: {
+                    url: '/api/equipments?query=%QUERY',
+                    wildcard: '%QUERY'
+                }
+            });
+
+            $('#equipment').typeahead({
+                minLength: 3,
+                highlight: true
+            }, {
+                name: 'equipments',
+                display: 'name',
+                source: equipments
+            }).on("typeahead:select", function (e, equipment) {
+                $("#equipments").append("<li class='list-group-item'>" + equipment.name + "</li>");
+
+                $("#equipment").typeahead("val", "");
+
+                vm.EquipmentIds.push(equipment.id);
+
+            });
+
+            $.validator.addMethod("validCustomer", function () {
+                return vm.CustomerId && vm.CustomerId !== 0;
+            }, "Please select a valid customer.");
+
+            $.validator.addMethod("atLeastOneEquipment", function () {
+                return vm.EquipmentIds.length > 0;
+            }, "Please select at least one equipment.");
+
+            var validator = $("#newRental").validate({ //submit the form
+                submitHandler: function () {
+                 //   e.preventDefault();
+
+                    $.ajax({
+                        url: "/api/newRentals",
+                        method: "post",
+                        data: vm
+                    })
+                        .done(function () {
+                            toastr.success("Rentals successfully recorded.");
+
+                            $("#customer").typeahead("val", "");
+                            $("#equipment").typeahead("val", "");
+                            $("#equipments").empty();
+
+                            vm = { EquipmentsIds: [] };
+
+                            validator.resetForm();
+                        })
+                        .fail(function () {
+                            toastr.error("Something unexpected happend.");
+                        });
+                    return false;
+                }
+            });
+            
+        });
+       
+    </script>
+   
+
+            
+     
+}
+
